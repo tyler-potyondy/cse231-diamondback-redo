@@ -9,16 +9,49 @@ extern "C" {
     fn our_code_starts_here(input: u64) -> u64;
 }
 
+#[no_mangle]
+#[export_name = "\x01snek_print"]
+fn snek_print(i:u64){
+    if i % 2 == 0 { 
+        let val:i64 = i as i64;
+        println!("{}", val >> 1) 
+    }
+    else if i == 3 { println!("true") }
+    else if i == 1 { println!("false") }
+    else { println!("Unknown: {}",i) }
+}
+
+#[no_mangle]
 #[export_name = "\x01snek_error"]
 pub extern "C" fn snek_error(errcode: i64) {
-    // TODO: print error message according to writeup
-    eprintln!("an error ocurred {errcode}");
+    let i = errcode;
+    if i % 2 == 0 { 
+        let val:i64 = i as i64;
+        println!("{}", val >> 1) 
+    }
+    else if i == 3 { println!("true") }
+    else if i == 1 { println!("false") }
+    else { println!("Unknown: {}",i) }
+    let mut err_msg = "";
+    if errcode == 5 {
+        err_msg = "overflow";
+    } else if errcode == 7 {
+        err_msg = "invalid argument"
+    }
+    eprintln!("an error ocurred - {err_msg}");
     std::process::exit(1);
 }
 
-fn parse_input(input: &str) -> u64 {
-    // TODO: parse the input string into internal value representation
-    0
+fn parse_input(s: &str) -> u64 {
+    if s == "true" { 3 }
+    else if s == "false" { 1 }
+    else { 
+        let res = s.parse::<u64>();
+        match res {
+            Ok(val) => val << 1,
+            Err(_) => panic!("Invalid")
+        }
+    }    
 }
 
 fn main() {
@@ -27,5 +60,5 @@ fn main() {
     let input = parse_input(&input);
 
     let i: u64 = unsafe { our_code_starts_here(input) };
-    println!("{i}");
+    //snek_print(i)
 }
