@@ -318,6 +318,12 @@ success_tests! {
         input: "10",
         expected: "10\n10",
     },
+    {
+        name: simple_func_2args,
+        file: "simple_func_2args.snek",
+        expected: "18",
+    },
+
     
 }
 
