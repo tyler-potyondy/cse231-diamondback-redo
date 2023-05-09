@@ -1,0 +1,4 @@
+(fun (apple x)
+    x
+)
+(dog 5)

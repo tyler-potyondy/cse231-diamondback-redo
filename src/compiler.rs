@@ -286,6 +286,13 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
            }
         }},
 
+        Expr::Call(name) => {
+            if ! func_names.contains(name) {
+                panic!("Error - Invalid function call without definition.")
+            }
+            instr.push(Instr::Jmp(Val::Label(name.clone())));
+        },
+
         Expr::Call1(name, arg) => {
             if ! func_names.contains(name) {
                 panic!("Error - Invalid function call without definition.")
@@ -507,6 +514,11 @@ fn val_to_str(v: &Val) -> String {
 
 fn compile_definition_instrs(d: &Definition, labels: &mut i32, func_names: &HashSet<String>) -> Vec<Instr> {
     let (env, body, name) = match d {
+        Definition::Fun(name, body) => {
+            let body_env:HashMap<String,i64> = HashMap::new();
+            (body_env, body, name)
+        }
+
         // store arg1 at RSP + 8 (insert as negative because code generator does RSP - {offset}
         Definition::Fun1(name, arg, body) => {
             let mut body_env:HashMap<String,i64> = HashMap::new();
@@ -556,6 +568,7 @@ pub fn compile(p: &Program) -> (String,String) {
 
     for def in &p.defs[..] {
         let name = match def {
+            Definition::Fun(name,_) => name,
             Definition::Fun1(name,_ ,_) => name,
             Definition::Fun2(name,_ ,_ ,_) => name,
         };

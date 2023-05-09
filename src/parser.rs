@@ -115,6 +115,12 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
                     Expr::Break(Box::new(parse_expr(e)))
                 },
 
+                // Empty Argument Function //
+                [Sexp::Atom(S(funname))] => {
+                    if check_reserved_words(funname.clone()) { panic!("Invalid")}
+                    Expr::Call(funname.to_string())
+                },
+
                 // One Argument Function //
                 [Sexp::Atom(S(funname)), arg] => {
                     if check_reserved_words(funname.clone()) { panic!("Invalid")}
@@ -131,8 +137,7 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
                         Box::new(parse_expr(arg2))
                     )
                 },
-                _ => {
-                    panic!("Invalid S-Expression.")},
+                _ => panic!("Invalid S-Expression."),
             }
         },
         
@@ -154,7 +159,12 @@ fn parse_definition(s: &Sexp) -> (Definition, String) {
                     if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
                     (Definition::Fun2(funname.to_string(), arg1.to_string(), arg2.to_string(), parse_expr(body)), funname.to_string())
                 }
+                [Sexp::Atom(S(funname))] => {
+                    if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
+                    (Definition::Fun(funname.to_string(), parse_expr(body)), funname.to_string())
+                }
                 _ => panic!("Bad fundef"),
+
             },
             _ => panic!("Bad fundef"),
         },

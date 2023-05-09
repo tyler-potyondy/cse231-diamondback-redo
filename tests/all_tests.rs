@@ -3,6 +3,11 @@ mod infra;
 // Your tests go here!
 success_tests! {
     {
+        name: func_empty_args,
+        file: "func_empty_arg.snek",
+        expected: "5",
+    },
+    {
         name: fact,
         file: "fact.snek",
         input: "10",
@@ -628,6 +633,26 @@ static_error_tests! {
         name: invalid_loop_fail0,
         file: "cobra_tests/invalid_loop_fail0.snek",
         expected: "Invalid",
-    }
+    },
     /* END COBRA TESTS */
+    {
+        name: func_input1_fail,
+        file: "func_input1_fail.snek",
+        expected: "Invalid",
+    },
+    {
+        name: func_repeat_dec,
+        file: "func_repeat_dec.snek",
+        expected: "Invalid",
+    },
+    {
+        name: func_repeat_param,
+        file: "func_repeat_param.snek",
+        expected: "Invalid",
+    },
+    {
+        name: func_call_no_exist,
+        file: "func_call_no_exist.snek",
+        expected: "Invalid",
+    },
 }

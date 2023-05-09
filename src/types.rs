@@ -32,6 +32,7 @@ pub struct Program {
 
 #[derive(Debug)]
 pub enum Definition {
+    Fun(String, Expr),
     Fun1(String, String, Expr),
     Fun2(String, String, String, Expr),
 }
@@ -99,5 +100,6 @@ pub enum Expr {
     Set(String, Box<Expr>),
     Block(Vec<Expr>),
 
+    Call(String),
     Call1(String, Box<Expr>),
     Call2(String, Box<Expr>, Box<Expr>),}

@@ -1,0 +1,7 @@
+(fun (apple x x)
+    5
+)
+(fun (apple x)
+    5
+)
+(apple 3)
