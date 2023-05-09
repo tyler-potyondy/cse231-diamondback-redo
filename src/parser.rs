@@ -1,4 +1,5 @@
 use super::types;
+use im::HashSet;
 use sexp::*;
 use sexp::Atom::*;
 
@@ -7,7 +8,6 @@ use types::Op1;
 use types::Op2;
 use types::Program;
 use types::Definition;
-use im::HashSet;
 
 
 pub fn parse_expr(s: &Sexp) -> types::Expr {
@@ -27,7 +27,7 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
                 Expr::Id(String::from(var))
             }
         },
-        Sexp::List(vec) => {println!("{:?}",vec);
+        Sexp::List(vec) => {
             match &vec[..] {
                 // add1 operator //
                 [Sexp::Atom(S(op)), e] if op == "add1"   => Expr::UnOp(Op1::Add1, Box::new(parse_expr(e))),
@@ -99,7 +99,6 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
                 // Block statement //
                 [Sexp::Atom(S(op)), exprs @ ..] if op == "block" => {
                     let coll:Vec<Expr> = exprs.into_iter().map(parse_expr).collect();
-                    println!("{:?}",coll);
                     if coll.len() == 0 {
                         panic!("Invalid S-Expression")
                     }
@@ -117,15 +116,22 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
                 },
 
                 // One Argument Function //
-                [Sexp::Atom(S(funname)), arg] => Expr::Call1(funname.to_string(), Box::new(parse_expr(arg))),
+                [Sexp::Atom(S(funname)), arg] => {
+                    if check_reserved_words(funname.clone()) { panic!("Invalid")}
+
+                    Expr::Call1(funname.to_string(), Box::new(parse_expr(arg)))
+                },
                 
                 // Two Argument Function //
-                [Sexp::Atom(S(funname)), arg1, arg2] => Expr::Call2(
-                    funname.to_string(),
-                    Box::new(parse_expr(arg1)),
-                    Box::new(parse_expr(arg2)),
-                ),
-                a => {println!("{:?}",a);
+                [Sexp::Atom(S(funname)), arg1, arg2] => {
+                    if check_reserved_words(funname.clone()) { panic!("Invalid")}
+                    Expr::Call2(
+                        funname.to_string(),
+                        Box::new(parse_expr(arg1)),
+                        Box::new(parse_expr(arg2))
+                    )
+                },
+                _ => {
                     panic!("Invalid S-Expression.")},
             }
         },
@@ -135,15 +141,18 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
         }
 }
 
-fn parse_definition(s: &Sexp) -> Definition {
+// PROVIDED LECTURE CODE (https://github.com/ucsd-compilers-s23/lecture1/blob/diamondback/src/main.rs#L334)
+fn parse_definition(s: &Sexp) -> (Definition, String) {
     match s {
         Sexp::List(def_vec) => match &def_vec[..] {
             [Sexp::Atom(S(keyword)), Sexp::List(name_vec), body] if keyword == "fun" => match &name_vec[..] {
                 [Sexp::Atom(S(funname)), Sexp::Atom(S(arg))] => {
-                    Definition::Fun1(funname.to_string(), arg.to_string(), parse_expr(body))
+                    if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
+                    (Definition::Fun1(funname.to_string(), arg.to_string(), parse_expr(body)), funname.to_string())
                 }
                 [Sexp::Atom(S(funname)), Sexp::Atom(S(arg1)), Sexp::Atom(S(arg2))] => {
-                    Definition::Fun2(funname.to_string(), arg1.to_string(), arg2.to_string(), parse_expr(body))
+                    if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
+                    (Definition::Fun2(funname.to_string(), arg1.to_string(), arg2.to_string(), parse_expr(body)), funname.to_string())
                 }
                 _ => panic!("Bad fundef"),
             },
@@ -153,17 +162,22 @@ fn parse_definition(s: &Sexp) -> Definition {
     }
 }
 
+// PROVIDED LECTURE CODE (https://github.com/ucsd-compilers-s23/lecture1/blob/diamondback/src/main.rs#L334)
 pub fn parse_program(s: &Sexp) -> Program {
     match s {
         Sexp::List(vec) => {
             let mut defs: Vec<Definition> = vec![];
+            let mut func_list = HashSet::new();
             for def_or_exp in vec {
                 if is_def(def_or_exp) {
-                    defs.push(parse_definition(def_or_exp));
+                    let (instr, name) = parse_definition(def_or_exp);
+                    defs.push(instr);
+                    func_list.insert(name);
                 } else {
                     return Program {
                         defs: defs,
                         main: parse_expr(def_or_exp),
+                        func_list: func_list,
                     };
                 }
             }
@@ -173,6 +187,7 @@ pub fn parse_program(s: &Sexp) -> Program {
     }
 }
 
+// PROVIDED IN LECTURE CODE (https://github.com/ucsd-compilers-s23/lecture1/blob/diamondback/src/main.rs#L334)
 fn is_def(s: &Sexp) -> bool {
     match s {
         Sexp::List(def_vec) => match &def_vec[..] {
@@ -183,32 +198,24 @@ fn is_def(s: &Sexp) -> bool {
     }
 }
 
+// This was inspired by the code from compiler 31 and 17
+fn check_reserved_words(name: String) -> bool {
+    match &name[..] {
+        "let" | "block" | "set!" | "loop" | "break" | "if"   | "input" | "+" |
+        "-"   | "*"     | "="    | "true" | "false" | ">"    | "<"     | ">="|
+        "<="  | "fun"   | "print"| "sub1" | "add1"  | "isnum"| "isbool" => true,
+        _ => false
+    }
+}
 
 fn parse_bind(s: &Sexp) -> (String, Expr) {
-    let mut reserved_words = HashSet::new();
-    reserved_words.insert("let".to_string());
-    reserved_words.insert("block".to_string());
-    reserved_words.insert("set!".to_string());
-    reserved_words.insert("loop".to_string());
-    reserved_words.insert("break".to_string());
-    reserved_words.insert("if".to_string());
-    reserved_words.insert("input".to_string());
-    reserved_words.insert("+".to_string());
-    reserved_words.insert("-".to_string());
-    reserved_words.insert("*".to_string());
-    reserved_words.insert("=".to_string());
-    reserved_words.insert("true".to_string());
-    reserved_words.insert("false".to_string());
-    reserved_words.insert(">".to_string());
-    reserved_words.insert("<".to_string());
-    reserved_words.insert(">=".to_string());
-    reserved_words.insert("<=".to_string());
+
 
     match s {
         Sexp::List(vec) =>
             match &vec[..] {
                 [Sexp::Atom(S(var)), e] => {   
-                    if reserved_words.contains(var){
+                    if check_reserved_words(var.clone()){
                         panic!("Error - keyword used.")
                     }
                     (String::from(var),parse_expr(e)) },

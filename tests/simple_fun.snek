@@ -1,0 +1,4 @@
+(fun (printval val)
+    (print val)
+)
+(printval input)

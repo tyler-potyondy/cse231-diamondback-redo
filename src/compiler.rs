@@ -9,10 +9,10 @@ use types::Reg;
 use types::Program;
 use types::Definition;
 
-use im::HashMap;
+use im::{HashMap,HashSet};
 
 
-fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i32, brake: &String) -> Vec<Instr> {
+fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i32, brake: &String, func_names: &HashSet<String>) -> Vec<Instr> {
     let mut instr = Vec::new();
     match e {
         Expr::Number(n) => {
@@ -30,7 +30,7 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
         // Block //
         Expr::Block(es) => {
             for item in es {
-                instr.extend(compile_to_instrs(item, si, env, l, brake));
+                instr.extend(compile_to_instrs(item, si, env, l, brake, func_names));
             }
         },
 
@@ -40,7 +40,7 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
             let startloop = new_label(l, "loop");
             let endloop = new_label(l, "loopend");
 
-            let e_is = compile_to_instrs(e, si, env, l, &endloop);
+            let e_is = compile_to_instrs(e, si, env, l, &endloop, func_names);
             instr.push(Instr::Label(Val::Label(startloop.clone())));
             instr.extend(e_is);
             instr.push(Instr::Jmp(Val::Label(startloop.clone())));
@@ -49,7 +49,7 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
 
         // Break // 
         Expr::Break(e) => {
-            let e_is = compile_to_instrs(e, si, env, l, brake);
+            let e_is = compile_to_instrs(e, si, env, l, brake, func_names);
             instr.extend(e_is);
             
             if brake == ""{
@@ -60,13 +60,12 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
         
         // Set // 
         Expr::Set(name, val) => {
-            println!("{:?}",env);
             let res = env.get(name);
             let offset = match res {
                 Some(x) => x,
                 None => panic!("Unbound variable identifier {name}"),
             };
-            instr.extend(compile_to_instrs(val, si, env, l, brake));
+            instr.extend(compile_to_instrs(val, si, env, l, brake, func_names));
             instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, *offset), Val::Reg(Reg::RAX)));
         }
 
@@ -74,7 +73,7 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
         Expr::If(cond, e2, e3) => {
 
             // evaluate expression of conditional and type check
-            instr.extend(compile_to_instrs(cond, si, env, l, brake));
+            instr.extend(compile_to_instrs(cond, si, env, l, brake, func_names));
 
             // create labels
             let cond_label = new_label(l, "if");
@@ -85,12 +84,12 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
             instr.push(Instr::JEqual(Val::Label(cond_label.clone())));
 
             // else branch
-            instr.extend(compile_to_instrs(e2, si, env, l, brake));
+            instr.extend(compile_to_instrs(e2, si, env, l, brake, func_names));
             instr.push(Instr::Jmp(Val::Label(end_label.clone())));
 
             // true branch
             instr.push(Instr::Label(Val::Label(cond_label.clone())));
-            instr.extend(compile_to_instrs(e3, si+1, env, l, brake));
+            instr.extend(compile_to_instrs(e3, si+1, env, l, brake, func_names));
             instr.push(Instr::Label(Val::Label(end_label.clone())));
 
         },
@@ -99,27 +98,27 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
         Expr::UnOp(op1, subexpr) => {
             match op1 {
                 Op1::Add1 => {
-                    update_vec_unop(&mut instr, compile_to_instrs(subexpr,si,env, l, brake),
+                    update_vec_unop(&mut instr, compile_to_instrs(subexpr,si,env, l, brake, func_names),
                     Instr::IAdd(Val::Reg(Reg::RAX), 
                     Val::Imm(1 << 1)));
                     instr.push(Instr::OverFlow())
                 },
                 Op1::Sub1 => {
-                    update_vec_unop(&mut instr, compile_to_instrs(subexpr,si,env, l, brake), 
+                    update_vec_unop(&mut instr, compile_to_instrs(subexpr,si,env, l, brake, func_names), 
                     Instr::ISub(Val::Reg(Reg::RAX), 
                     Val::Imm(1 << 1)));
                     instr.push(Instr::OverFlow())
                 },
                 Op1::IsBool => {
-                    instr.extend(compile_to_instrs(subexpr, si, env, l, brake));
+                    instr.extend(compile_to_instrs(subexpr, si, env, l, brake, func_names));
                     check_bool_type_instr(&mut instr, l);
                 }
                 Op1::IsNum => {
-                    instr.extend(compile_to_instrs(subexpr,si,env,l, brake));
+                    instr.extend(compile_to_instrs(subexpr,si,env,l, brake, func_names));
                     check_num_type_instr(&mut instr, l);
                 }
                 Op1::Print => {
-                    let e_is = compile_to_instrs(subexpr, si, env, l, brake);
+                    let e_is = compile_to_instrs(subexpr, si, env, l, brake, func_names);
                     let index:i64 = if si % 2 == 1 { si + 1 } else { si };
                     let offset = (index * 8) as u64;
                     instr.extend(e_is);
@@ -138,8 +137,8 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
             match op2 {
                 Op2::Plus => {
                     update_vec_binop(
-                        &mut instr, compile_to_instrs(subexpr1,si,env, l, brake), 
-                        compile_to_instrs(subexpr2,si+1,env, l, brake), 
+                        &mut instr, compile_to_instrs(subexpr1,si,env, l, brake, func_names), 
+                        compile_to_instrs(subexpr2,si+1,env, l, brake, func_names), 
                         Instr::IAdd(Val::Reg(Reg::RAX),Val::RegOffset(Reg::RSP, si*8)),
                         si,
                     );
@@ -147,18 +146,18 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                 },
                 Op2::Minus => {
                     update_vec_binop(
-                        &mut instr, compile_to_instrs(subexpr2,si,env,l, brake), 
-                        compile_to_instrs(subexpr1,si+1,env,l, brake), 
+                        &mut instr, compile_to_instrs(subexpr2,si,env,l, brake, func_names), 
+                        compile_to_instrs(subexpr1,si+1,env,l, brake, func_names), 
                         Instr::ISub(Val::Reg(Reg::RAX),Val::RegOffset(Reg::RSP, si*8)),
                         si,
                     );
                     instr.push(Instr::OverFlow())
                 },
                 Op2::Times => {
-                    let ops = compile_to_instrs(subexpr2,si+1,env,l, brake);
+                    let ops = compile_to_instrs(subexpr2,si+1,env,l, brake, func_names);
                     
                     update_vec_binop(
-                        &mut instr, compile_to_instrs(subexpr1,si,env,l, brake), 
+                        &mut instr, compile_to_instrs(subexpr1,si,env,l, brake, func_names), 
                         ops, 
                         Instr::Shr(Val::Reg(Reg::RAX), Val::Imm(1)),
                         si,
@@ -167,8 +166,8 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                     instr.push(Instr::OverFlow())
                 },
                 Op2::Equal => {
-                        let op1 = compile_to_instrs(subexpr2,si,env,l, brake);
-                        let op2 = compile_to_instrs(subexpr1,si+1,env,l, brake);
+                        let op1 = compile_to_instrs(subexpr2,si,env,l, brake, func_names);
+                        let op2 = compile_to_instrs(subexpr1,si+1,env,l, brake, func_names);
 
                         let offset = si*8;
 
@@ -187,8 +186,8 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                     },
                 Op2::Greater => {
                     compare_size(&mut instr, 
-                        compile_to_instrs(&subexpr1, si, env, l, brake), 
-                        compile_to_instrs(&subexpr2, si+1, env, l, brake), 
+                        compile_to_instrs(&subexpr1, si, env, l, brake, func_names), 
+                        compile_to_instrs(&subexpr2, si+1, env, l, brake, func_names), 
                         si);
 
                     // create labels
@@ -203,8 +202,8 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                 },
                 Op2::GreaterEqual => {
                     compare_size(&mut instr, 
-                        compile_to_instrs(&subexpr1, si, env, l, brake), 
-                        compile_to_instrs(&subexpr2, si+1, env, l, brake), 
+                        compile_to_instrs(&subexpr1, si, env, l, brake, func_names), 
+                        compile_to_instrs(&subexpr2, si+1, env, l, brake, func_names), 
                         si);
 
                     // create labels
@@ -219,8 +218,8 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                 },
                 Op2::Less => {
                     compare_size(&mut instr, 
-                        compile_to_instrs(&subexpr1, si, env, l, brake), 
-                        compile_to_instrs(&subexpr2, si+1, env, l, brake), 
+                        compile_to_instrs(&subexpr1, si, env, l, brake, func_names), 
+                        compile_to_instrs(&subexpr2, si+1, env, l, brake, func_names), 
                         si);
 
                     // create labels
@@ -235,8 +234,8 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                 },
                 Op2::LessEqual => {
                     compare_size(&mut instr, 
-                        compile_to_instrs(&subexpr1, si, env, l, brake), 
-                        compile_to_instrs(&subexpr2, si+1, env, l, brake), 
+                        compile_to_instrs(&subexpr1, si, env, l, brake, func_names), 
+                        compile_to_instrs(&subexpr2, si+1, env, l, brake, func_names), 
                         si);
 
                     // create labels
@@ -263,12 +262,12 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                 } else {
                     scope_keys.insert(key.clone());
                 }
-                instr.extend(compile_to_instrs(&item.1, si, &nenv, l, brake));
+                instr.extend(compile_to_instrs(&item.1, si, &nenv, l, brake, func_names));
                 nenv = nenv.update(key, si*8); 
                 instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, si*8), Val::Reg(Reg::RAX)));
                 si = si + 1;
             }
-            instr.extend(compile_to_instrs(body, si+1, &nenv, l, brake));
+            instr.extend(compile_to_instrs(body, si+1, &nenv, l, brake, func_names));
         },
 
         // Variable string //
@@ -286,8 +285,47 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                 }
            }
         }},
+
+        Expr::Call1(name, arg) => {
+            if ! func_names.contains(name) {
+                panic!("Error - Invalid function call without definition.")
+            }
+            let arg_instrs = compile_to_instrs(arg, si, env, l, brake, func_names);
+            let offset = ((si*8) + 8) as u64;
+
+            // instr.extend(arg_instrs);
+            // instr.push(Instr::ISub(Val::Reg(Reg::RSP), Val::Imm(offset)));
+            // instr.push(Instr::Push(Val::Reg(Reg::RDI)));
+            // instr.push(Instr::IMov(Val::Reg(Reg::RDI),Val::Reg(Reg::RAX)));
+            // instr.push(Instr::Call(Val::Label(String::from(name))));
+            // instr.push(Instr::Pop(Val::Reg(Reg::RDI)));
+            // instr.push(Instr::IAdd(Val::Reg(Reg::RSP), Val::Imm(offset)));
+
+            instr.extend(arg_instrs);
+            instr.push(Instr::ISub(Val::Reg(Reg::RSP), Val::Imm(offset)));
+            instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, 0), Val::Reg(Reg::RAX)));
+            instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, -8), Val::Reg(Reg::RDI)));
+            instr.push(Instr::Call(Val::Label(name.clone())));
+            instr.push(Instr::IMov(Val::Reg(Reg::RDI),Val::RegOffset(Reg::RSP, -8)));
+            instr.push(Instr::IAdd(Val::Reg(Reg::RSP), Val::Imm(offset)));
+
+        },
+        Expr::Call2(name, arg1, arg2) => {
+            let arg_instrs = compile_to_instrs(arg1, si, env, l, brake, func_names);
+            let offset = ((si*8) + (2*8)) as u64;
+            if ! func_names.contains(name) {
+                panic!("Error - Invalid function call without definition.")
+            }
+
+            instr.extend(arg_instrs);
+            instr.push(Instr::ISub(Val::Reg(Reg::RSP), Val::Imm(offset)));
+            instr.push(Instr::Push(Val::Reg(Reg::RDI)));
+            instr.push(Instr::IMov(Val::Reg(Reg::RDI),Val::Reg(Reg::RAX)));
+            instr.push(Instr::Call(Val::Label(String::from(name))));
+            instr.push(Instr::Pop(Val::Reg(Reg::RDI)));
+            instr.push(Instr::IAdd(Val::Reg(Reg::RSP), Val::Imm(offset)));
+        },
         
-        _ => panic!("UNCOMPLETE")
 
     }
     instr
@@ -430,8 +468,9 @@ fn instr_to_str(i: &Instr) -> String {
         Instr::Cmove(val_a,val_b) => format!("\ncmove {},{}",val_to_str(val_a),val_to_str(val_b)),
         Instr::OverFlow() => format!("\njo overflow"),
         Instr::Call(val_a) => format!("\ncall {}", val_to_str(val_a)),
-        Instr::Push(val_a) => format!("\npop {}",val_to_str(val_a)),
-        Instr::Pop(val_a) => format!("\npush {}",val_to_str(val_a)),
+        Instr::Push(val_a) => format!("\npush {}",val_to_str(val_a)),
+        Instr::Pop(val_a) => format!("\npop {}",val_to_str(val_a)),
+        Instr::Ret() => format!("\nret"),
     }
 }
 
@@ -442,18 +481,94 @@ fn val_to_str(v: &Val) -> String {
         Val::Reg(Reg::RSP) => String::from("rsp"),
         Val::Reg(Reg::RDI) => String::from("rdi"),
         Val::Imm(n) => n.to_string(),
-        Val::RegOffset(Reg::RSP,n) => format!("[rsp-{}]",n),
+        Val::RegOffset(Reg::RSP,n) => {
+            if *n < 0 {
+                format!("[rsp+{}]",-1 * n)}
+            else {
+                format!("[rsp-{}]",n)}
+            },
         Val::Label(str_val) => format!("{}",str_val),
         _ => panic!("TODO val_to_str")
     }
 }
 
-pub fn compile(e: &types::Expr, si: i64, env: &HashMap<String,i64>, l: &mut i32, brake: &String) -> String {
-    let instr_vec = compile_to_instrs(e,si,env, l, brake);
-    let mut output = String::new();
+fn compile_definition_instrs(d: &Definition, labels: &mut i32, func_names: &HashSet<String>) -> Vec<Instr> {
+    let (env, body, name) = match d {
+        // store arg1 at RSP + 8 (insert as negative because code generator does RSP - {offset}
+        Definition::Fun1(name, arg, body) => {
+            let mut body_env:HashMap<String,i64> = HashMap::new();
+            body_env.insert(String::from(arg),-8);
+            (body_env, body, name)
+        }
 
-    for entry in &instr_vec {
-        output = [output, instr_to_str(entry)].join("")
+        // store arg1 and arg2 at RSP + 8 and RSP + 16 (insert as negative because code generator does RSP - {offset}
+        Definition::Fun2(name, arg1, arg2, body) => {
+            if arg1 == arg2 {
+                panic!("Error - invalid function declaration; parameter is declared twice")
+            }
+            let mut body_env:HashMap<String,i64> = HashMap::new();
+            
+            body_env.insert(String::from(arg1),-8);
+            body_env.insert(String::from(arg2), -16);
+            (body_env, body, name)
+        }
+    };
+    let mut out_instrs = Vec::new();
+
+    // add label for function name
+    out_instrs.push(Instr::Label(Val::Label(name.clone())));
+
+    // compile instructions for function body
+    out_instrs.extend(compile_to_instrs(body, 2, &env, labels, &String::from(""), func_names));
+    out_instrs.push(Instr::Ret());
+    out_instrs
+
+}
+
+// this function incorporates aspects of the compile_program and compile_definition functions in the lecture code
+pub fn compile(p: &Program) -> (String,String) {
+    // create empty environment 
+    let env:&HashMap<String,i64> = &HashMap::new();
+
+    // initialize stack index, brake string, and label index
+    let si = 2;
+    let mut labels  = 0;
+    let brake = String::from("");
+
+    // create instructions for function defintions
+    let mut def_instrs:Vec<Instr> = Vec::new();
+
+    // create hashset to insure each function declaration is unique 
+    let mut func_names = HashSet::new();
+
+    for def in &p.defs[..] {
+        let name = match def {
+            Definition::Fun1(name,_ ,_) => name,
+            Definition::Fun2(name,_ ,_ ,_) => name,
+        };
+        if func_names.contains(name) { 
+            panic!("Error - invalid function declaration, function {name} declare multiple times.")
+        }
+        func_names.insert(name.clone());
+
+        def_instrs.extend(compile_definition_instrs(&def, &mut labels, &p.func_list));
+      }
+    
+    // create instructions for main body
+    let main_instrs = compile_to_instrs(&p.main,si,env, &mut labels, &brake, &p.func_list);
+
+    let mut def_output = String::new();
+    let mut main_output = String::new();
+
+    // convert def instr vector to assembly str
+    for entry in &def_instrs {
+        def_output = [def_output, instr_to_str(entry)].join("")
     }
-    output
+
+    // convert main instr vector to assembly str
+    for entry in &main_instrs {
+        main_output = [main_output, instr_to_str(entry)].join("")
+    }
+    (def_output,main_output)
+
 }

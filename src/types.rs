@@ -5,6 +5,7 @@ pub const INVALID_ARGUMENT_ERROR_CODE:u64 = 7;
 pub const GREATEST_VAL:i64 = 4611686018427387903;
 pub const LEAST_VAL:i64 = -4611686018427387904;
 
+use im::HashSet;
 
 #[derive(Debug)]
 pub enum Val {
@@ -22,9 +23,11 @@ pub enum Reg {
     RBX,
 }
 
+#[derive(Debug)]
 pub struct Program {
     pub defs: Vec<Definition>,
     pub main: Expr,
+    pub func_list: HashSet<String>,
 }
 
 #[derive(Debug)]
@@ -57,6 +60,7 @@ pub enum Instr {
     Call(Val),
     Push(Val),
     Pop(Val),
+    Ret(),
 
 }
 

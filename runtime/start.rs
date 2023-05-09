@@ -11,7 +11,7 @@ extern "C" {
 
 #[no_mangle]
 #[export_name = "\x01snek_print"]
-fn snek_print(i:u64){
+fn snek_print(i:u64) -> u64 {
     if i % 2 == 0 { 
         let val:i64 = i as i64;
         println!("{}", val >> 1) 
@@ -19,6 +19,8 @@ fn snek_print(i:u64){
     else if i == 3 { println!("true") }
     else if i == 1 { println!("false") }
     else { println!("Unknown: {}",i) }
+
+    return i; // fun note if anyone ever sees this...this is necessary to place the proper value back onto rax (otherwise rax is 0)
 }
 
 #[no_mangle]
@@ -60,5 +62,5 @@ fn main() {
     let input = parse_input(&input);
 
     let i: u64 = unsafe { our_code_starts_here(input) };
-    //snek_print(i)
+    snek_print(i);
 }
