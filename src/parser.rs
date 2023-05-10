@@ -161,15 +161,22 @@ fn parse_definition(s: &Sexp) -> (Definition, String) {
         Sexp::List(def_vec) => match &def_vec[..] {
             [Sexp::Atom(S(keyword)), Sexp::List(name_vec), body] if keyword == "fun" => match &name_vec[..] {
                 [Sexp::Atom(S(funname)), Sexp::Atom(S(arg))] => {
-                    if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
+                    if check_reserved_words(funname.clone()) || check_reserved_words(arg.clone()) || arg == "input"
+                    { 
+                        panic!("Error - Invalid keyword used in function defintion.")
+                    }
                     (Definition::Fun1(funname.to_string(), arg.to_string(), parse_expr(body, true)), funname.to_string())
                 }
                 [Sexp::Atom(S(funname)), Sexp::Atom(S(arg1)), Sexp::Atom(S(arg2))] => {
-                    if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
+                    if check_reserved_words(funname.clone()) || check_reserved_words(arg1.clone()) 
+                      || check_reserved_words(arg2.clone()) || arg1 == "input" && arg2 == "input"
+                    { 
+                        panic!("Error - Invalid keyword used in function defintion.")
+                    }                    
                     (Definition::Fun2(funname.to_string(), arg1.to_string(), arg2.to_string(), parse_expr(body, true)), funname.to_string())
                 }
                 [Sexp::Atom(S(funname))] => {
-                    if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
+                    if check_reserved_words(funname.clone()) { panic!("Error - Invalid keyword used in function defintion.")}
                     (Definition::Fun(funname.to_string(), parse_expr(body, true)), funname.to_string())
                 }
                 _ => panic!("Bad fundef"),

@@ -655,4 +655,14 @@ static_error_tests! {
         file: "func_call_no_exist.snek",
         expected: "Invalid",
     },
+    {
+        name: input_is_arg,
+        file: "input_is_arg.snek",
+        expected: "Invalid",
+    },
+    {
+        name: key_word_is_arg,
+        file: "key_word_is_arg.snek",
+        expected: "Invalid",
+    },
 }

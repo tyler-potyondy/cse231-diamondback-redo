@@ -2,3 +2,6 @@ NOTES:
 
 I would like to thank the teaching staff for the posted lecture one code and compiler 17/31. These influenced my design
 for diamondback. I noted instances when code was directly copied from lecture.
+
+Additionally, I resused and repurposed the existing cobra testing suite to complement my developed testing suite. This is found
+in the directory tests/cobra_tests/
