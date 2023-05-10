@@ -10,7 +10,7 @@ use types::Program;
 use types::Definition;
 
 
-pub fn parse_expr(s: &Sexp) -> types::Expr {
+pub fn parse_expr(s: &Sexp, is_def: bool) -> types::Expr {
     match s {
         Sexp::Atom(I(n)) => { 
             if *n < types::LEAST_VAL || *n > types::GREATEST_VAL {
@@ -24,65 +24,70 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
             } else if var == "false" {
                 Expr::Boolean(false)
             } else {            
+                if var == "input" && is_def {
+                    panic!("Invalid - input keyword cannot be in function definition.")
+                }
                 Expr::Id(String::from(var))
             }
         },
         Sexp::List(vec) => {
             match &vec[..] {
                 // add1 operator //
-                [Sexp::Atom(S(op)), e] if op == "add1"   => Expr::UnOp(Op1::Add1, Box::new(parse_expr(e))),
+                [Sexp::Atom(S(op)), e] if op == "add1"   => Expr::UnOp(Op1::Add1, Box::new(parse_expr(e, is_def))),
 
                 // sub1 operator //
-                [Sexp::Atom(S(op)), e] if op == "sub1"   => Expr::UnOp(Op1::Sub1, Box::new(parse_expr(e))),
+                [Sexp::Atom(S(op)), e] if op == "sub1"   => Expr::UnOp(Op1::Sub1, Box::new(parse_expr(e, is_def))),
 
                 // isnum operator //
-                [Sexp::Atom(S(op)), e] if op == "isnum"  => Expr::UnOp(Op1::IsNum, Box::new(parse_expr(e))),
+                [Sexp::Atom(S(op)), e] if op == "isnum"  => Expr::UnOp(Op1::IsNum, Box::new(parse_expr(e, is_def))),
 
                 // isbool operator //
-                [Sexp::Atom(S(op)), e] if op == "isbool" => Expr::UnOp(Op1::IsBool, Box::new(parse_expr(e))),
+                [Sexp::Atom(S(op)), e] if op == "isbool" => Expr::UnOp(Op1::IsBool, Box::new(parse_expr(e, is_def))),
 
                 // print statement //
-                [Sexp::Atom(S(op)), e] if op == "print"  => Expr::UnOp(Op1::Print, Box::new(parse_expr(e))),
+                [Sexp::Atom(S(op)), e] if op == "print"  => {
+                    Expr::UnOp(Op1::Print, Box::new(parse_expr(e, is_def))) 
+                },
 
                 // addition operator //
                 [Sexp::Atom(S(op)), e1, e2] if op == "+" => 
-                    Expr::BinOp(Op2::Plus, Box::new(parse_expr(e1)),Box::new(parse_expr(e2))),
+                    Expr::BinOp(Op2::Plus, Box::new(parse_expr(e1, is_def)),Box::new(parse_expr(e2, is_def))),
 
                 // subtraction operator //
                 [Sexp::Atom(S(op)), e1, e2] if op == "-" => 
-                    Expr::BinOp(Op2::Minus, Box::new(parse_expr(e1)),Box::new(parse_expr(e2))),
+                    Expr::BinOp(Op2::Minus, Box::new(parse_expr(e1, is_def)),Box::new(parse_expr(e2, is_def))),
 
                 // multiplication operator //
                 [Sexp::Atom(S(op)), e1, e2] if op == "*" => 
-                    Expr::BinOp(Op2::Times, Box::new(parse_expr(e1)),Box::new(parse_expr(e2))),
+                    Expr::BinOp(Op2::Times, Box::new(parse_expr(e1, is_def)),Box::new(parse_expr(e2, is_def))),
 
                 // Equal operator //
                 [Sexp::Atom(S(op)), e1, e2] if op == "=" => 
-                    Expr::BinOp(Op2::Equal, Box::new(parse_expr(e1)),Box::new(parse_expr(e2))),
+                    Expr::BinOp(Op2::Equal, Box::new(parse_expr(e1, is_def)),Box::new(parse_expr(e2, is_def))),
 
                 // Greater than or equal operator //
                 [Sexp::Atom(S(op)), e1, e2] if op == ">=" => 
-                    Expr::BinOp(Op2::GreaterEqual, Box::new(parse_expr(e1)),Box::new(parse_expr(e2))),
+                    Expr::BinOp(Op2::GreaterEqual, Box::new(parse_expr(e1, is_def)),Box::new(parse_expr(e2, is_def))),
 
                 // Less than or equal operator //
                 [Sexp::Atom(S(op)), e1, e2] if op == "<=" => {
-                    Expr::BinOp(Op2::LessEqual, Box::new(parse_expr(e1)),Box::new(parse_expr(e2)))},
+                    Expr::BinOp(Op2::LessEqual, Box::new(parse_expr(e1, is_def)),Box::new(parse_expr(e2, is_def)))},
 
                 // Greater than operator //
                 [Sexp::Atom(S(op)), e1, e2] if op == ">" => 
-                    Expr::BinOp(Op2::Greater, Box::new(parse_expr(e1)),Box::new(parse_expr(e2))),
+                    Expr::BinOp(Op2::Greater, Box::new(parse_expr(e1, is_def)),Box::new(parse_expr(e2, is_def))),
 
                 // Less than operator //
                 [Sexp::Atom(S(op)), e1, e2] if op == "<" => 
-                    Expr::BinOp(Op2::Less, Box::new(parse_expr(e1)),Box::new(parse_expr(e2))),
+                    Expr::BinOp(Op2::Less, Box::new(parse_expr(e1, is_def)),Box::new(parse_expr(e2, is_def))),
                 
                 // if statement //
                 [Sexp::Atom(S(op)), e1, e2, e3] if op == "if" => 
-                    Expr::If(Box::new(parse_expr(e1)),Box::new(parse_expr(e2)), Box::new(parse_expr(e3))),
+                    Expr::If(Box::new(parse_expr(e1, is_def)),Box::new(parse_expr(e2, is_def)), Box::new(parse_expr(e3, is_def))),
 
                 // loop statment //
                 [Sexp::Atom(S(op)), e] if op == "loop" =>  
-                    Expr::Loop(Box::new(parse_expr(e))),
+                    Expr::Loop(Box::new(parse_expr(e, is_def))),
 
                 // Let statement // 
                 [Sexp::Atom(S(op)), Sexp::List(list_vec), e] if op == "let" => {
@@ -93,12 +98,16 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
                     if bind_vec.len() == 0 {
                         panic!("Invalid S-Expression, missing binding for let.")
                     }
-                    Expr::Let(bind_vec, Box::new(parse_expr(e)))
+                    Expr::Let(bind_vec, Box::new(parse_expr(e, is_def)))
                 },
 
                 // Block statement //
                 [Sexp::Atom(S(op)), exprs @ ..] if op == "block" => {
-                    let coll:Vec<Expr> = exprs.into_iter().map(parse_expr).collect();
+                    let mut coll:Vec<Expr> = Vec::new();
+                    for item in exprs {
+                        coll.push(parse_expr(item, is_def));
+                    }
+
                     if coll.len() == 0 {
                         panic!("Invalid S-Expression")
                     }
@@ -107,12 +116,12 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
 
                 // set! statement //
                 [Sexp::Atom(S(op)), Sexp::Atom(S(name)), e] if op == "set!" => {
-                    Expr::Set(name.to_string(), Box::new(parse_expr(e)))
+                    Expr::Set(name.to_string(), Box::new(parse_expr(e, is_def)))
                 },
 
                 // Break statement //
                 [Sexp::Atom(S(op)), e] if op == "break" => {
-                    Expr::Break(Box::new(parse_expr(e)))
+                    Expr::Break(Box::new(parse_expr(e, is_def)))
                 },
 
                 // Empty Argument Function //
@@ -125,7 +134,7 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
                 [Sexp::Atom(S(funname)), arg] => {
                     if check_reserved_words(funname.clone()) { panic!("Invalid")}
 
-                    Expr::Call1(funname.to_string(), Box::new(parse_expr(arg)))
+                    Expr::Call1(funname.to_string(), Box::new(parse_expr(arg, is_def)))
                 },
                 
                 // Two Argument Function //
@@ -133,8 +142,8 @@ pub fn parse_expr(s: &Sexp) -> types::Expr {
                     if check_reserved_words(funname.clone()) { panic!("Invalid")}
                     Expr::Call2(
                         funname.to_string(),
-                        Box::new(parse_expr(arg1)),
-                        Box::new(parse_expr(arg2))
+                        Box::new(parse_expr(arg1, is_def)),
+                        Box::new(parse_expr(arg2, is_def))
                     )
                 },
                 _ => panic!("Invalid S-Expression."),
@@ -153,15 +162,15 @@ fn parse_definition(s: &Sexp) -> (Definition, String) {
             [Sexp::Atom(S(keyword)), Sexp::List(name_vec), body] if keyword == "fun" => match &name_vec[..] {
                 [Sexp::Atom(S(funname)), Sexp::Atom(S(arg))] => {
                     if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
-                    (Definition::Fun1(funname.to_string(), arg.to_string(), parse_expr(body)), funname.to_string())
+                    (Definition::Fun1(funname.to_string(), arg.to_string(), parse_expr(body, true)), funname.to_string())
                 }
                 [Sexp::Atom(S(funname)), Sexp::Atom(S(arg1)), Sexp::Atom(S(arg2))] => {
                     if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
-                    (Definition::Fun2(funname.to_string(), arg1.to_string(), arg2.to_string(), parse_expr(body)), funname.to_string())
+                    (Definition::Fun2(funname.to_string(), arg1.to_string(), arg2.to_string(), parse_expr(body, true)), funname.to_string())
                 }
                 [Sexp::Atom(S(funname))] => {
                     if check_reserved_words(funname.clone()) { panic!("Error - keyword used in function defintion.")}
-                    (Definition::Fun(funname.to_string(), parse_expr(body)), funname.to_string())
+                    (Definition::Fun(funname.to_string(), parse_expr(body, true)), funname.to_string())
                 }
                 _ => panic!("Bad fundef"),
 
@@ -186,7 +195,7 @@ pub fn parse_program(s: &Sexp) -> Program {
                 } else {
                     return Program {
                         defs: defs,
-                        main: parse_expr(def_or_exp),
+                        main: parse_expr(def_or_exp,false),
                         func_list: func_list,
                     };
                 }
@@ -228,7 +237,7 @@ fn parse_bind(s: &Sexp) -> (String, Expr) {
                     if check_reserved_words(var.clone()){
                         panic!("Error - keyword used.")
                     }
-                    (String::from(var),parse_expr(e)) },
+                    (String::from(var),parse_expr(e, false)) },
                 _ => panic!("Invalid S-Expression.")
             },
         _ => panic!("Invalid S-Expression.")
