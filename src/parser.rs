@@ -146,7 +146,20 @@ pub fn parse_expr(s: &Sexp, is_def: bool) -> types::Expr {
                         Box::new(parse_expr(arg2, is_def))
                     )
                 },
-                _ => panic!("Invalid S-Expression."),
+                _ => {
+                    if vec.len() > 3 {
+                        let vec1 = &vec[0..3];
+                        match vec1 {
+                            [Sexp::Atom(S(item)), arg1, arg2] => {
+                                if check_reserved_words(item.clone()) { panic!("Invalid S-Expression.") }
+                                parse_expr(&Sexp::List(vec!(vec[0].clone(),arg1.clone(),arg2.clone())), is_def)
+                            }
+                            _ => panic!("Invalid S-Expression."),
+                        } 
+                        
+                    }
+                    else {panic!("Invalid S-Expression.")}
+                },
             }
         },
         
@@ -175,11 +188,17 @@ fn parse_definition(s: &Sexp) -> (Definition, String) {
                     }                    
                     (Definition::Fun2(funname.to_string(), arg1.to_string(), arg2.to_string(), parse_expr(body, true)), funname.to_string())
                 }
+                
                 [Sexp::Atom(S(funname))] => {
                     if check_reserved_words(funname.clone()) { panic!("Error - Invalid keyword used in function defintion.")}
                     (Definition::Fun(funname.to_string(), parse_expr(body, true)), funname.to_string())
                 }
-                _ => panic!("Bad fundef"),
+                _ => {
+                    let vec = name_vec.clone();
+                    let out = vec[0..3].to_vec();
+                    println!("{:?}",out);
+                    parse_definition(&Sexp::List(vec!(Sexp::Atom(S(keyword.clone())),Sexp::List(out),body.clone())))
+                },
 
             },
             _ => panic!("Bad fundef"),
