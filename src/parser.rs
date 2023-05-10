@@ -201,9 +201,9 @@ fn parse_definition(s: &Sexp) -> (Definition, String) {
                 },
 
             },
-            _ => panic!("Bad fundef"),
+            _ => panic!("Invalid - Bad fundef"),
         },
-        _ => panic!("Bad fundef"),
+        _ => panic!("Invalid - Bad fundef"),
     }
 }
 
