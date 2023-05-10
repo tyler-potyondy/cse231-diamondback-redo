@@ -147,7 +147,7 @@ pub fn parse_expr(s: &Sexp, is_def: bool) -> types::Expr {
                     )
                 },
                 _ => {
-                    if vec.len() > 3 {
+                    if vec.len() >= 3 {
                         let vec1 = &vec[0..3];
                         match vec1 {
                             [Sexp::Atom(S(item)), arg1, arg2] => {
@@ -194,10 +194,13 @@ fn parse_definition(s: &Sexp) -> (Definition, String) {
                     (Definition::Fun(funname.to_string(), parse_expr(body, true)), funname.to_string())
                 }
                 _ => {
-                    let vec = name_vec.clone();
-                    let out = vec[0..3].to_vec();
-                    println!("{:?}",out);
-                    parse_definition(&Sexp::List(vec!(Sexp::Atom(S(keyword.clone())),Sexp::List(out),body.clone())))
+                    if name_vec.len() >= 3 {
+                        let vec = name_vec.clone();
+                        let out = vec[0..3].to_vec();
+                        parse_definition(&Sexp::List(vec!(Sexp::Atom(S(keyword.clone())),Sexp::List(out),body.clone())))
+                    } else {
+                        panic!("Invalid - Bad fundef")
+                    }
                 },
 
             },
