@@ -1,4 +1,0 @@
-(fun (apple input)
-    5
-)
-(apple 4)

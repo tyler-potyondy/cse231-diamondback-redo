@@ -1,4 +1,0 @@
-(fun (tester x)
-    input 
-)
-(tester 3)

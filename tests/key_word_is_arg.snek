@@ -1,4 +1,0 @@
-(fun (apple if)
-    5
-)
-(apple 4)

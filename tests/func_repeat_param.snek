@@ -1,4 +1,0 @@
-(fun (apple x x)
-    5
-)
-(apple 3)
