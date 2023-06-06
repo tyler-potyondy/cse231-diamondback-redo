@@ -100,6 +100,6 @@ pub enum Expr {
     Set(String, Box<Expr>),
     Block(Vec<Expr>),
 
-    Call(String),
+    Call(String,Vec<Expr>),
     Call1(String, Box<Expr>),
     Call2(String, Box<Expr>, Box<Expr>),}

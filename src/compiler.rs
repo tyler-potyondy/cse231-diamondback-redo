@@ -119,7 +119,7 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                 }
                 Op1::Print => {
                     let e_is = compile_to_instrs(subexpr, si, env, l, brake, func_names);
-                    let index:i64 = if si % 2 == 1 { si + 1 } else { si };
+                    let index:i64 = if si % 2 != 0 { si + 1 } else { si };
                     let offset = (index * 8) as u64;
                     instr.extend(e_is);
                     instr.push(Instr::ISub(Val::Reg(Reg::RSP), Val::Imm(offset)));
@@ -286,11 +286,37 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
            }
         }},
 
-        Expr::Call(name) => {
+        Expr::Call(name, args) => {
             if ! func_names.contains(name) {
                 panic!("Error - Invalid function call without definition.")
             }
-            instr.push(Instr::Jmp(Val::Label(name.clone())));
+
+            let arg_len = args.len() + 1;
+            let mut offset:u64 = (si as u64 * 8) + (arg_len as u64 * 8);
+
+            if offset % 16 == 0 {
+                offset += 8;
+            }
+
+            let original_offset = offset;
+
+            let mut iter = 0;
+            // instr.push(Instr::ISub(Val::Reg(Reg::RSP), Val::Imm(offset)));
+            for expr in args {
+                instr.extend(compile_to_instrs(expr, si+iter, env, l, brake, func_names));
+                instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, offset as i64), Val::Reg(Reg::RAX)));
+                offset -= 8;
+                iter += 1;
+            }
+
+            instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, offset as i64), Val::Reg(Reg::RDI)));
+
+            instr.push(Instr::ISub(Val::Reg(Reg::RSP),Val::Imm(original_offset)));
+
+            instr.push(Instr::Call(Val::Label(name.clone())));
+            instr.push(Instr::IAdd(Val::Reg(Reg::RSP),Val::Imm(original_offset)));
+
+
         },
 
         Expr::Call1(name, arg) => {
@@ -314,7 +340,6 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
             instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, -8), Val::Reg(Reg::RDI)));
             instr.push(Instr::Call(Val::Label(name.clone())));
             instr.push(Instr::IMov(Val::Reg(Reg::RDI),Val::RegOffset(Reg::RSP, -8)));
-            instr.push(Instr::IAdd(Val::Reg(Reg::RSP), Val::Imm(offset)));
 
         },
         Expr::Call2(name, arg1, arg2) => {

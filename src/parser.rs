@@ -124,27 +124,15 @@ pub fn parse_expr(s: &Sexp, is_def: bool) -> types::Expr {
                     Expr::Break(Box::new(parse_expr(e, is_def)))
                 },
 
-                // Empty Argument Function //
-                [Sexp::Atom(S(funname))] => {
-                    if check_reserved_words(funname.clone()) { panic!("Invalid")}
-                    Expr::Call(funname.to_string())
-                },
+                // Function Call//
+                [Sexp::Atom(S(funname)), args @ ..] => {
+                    if check_reserved_words(funname.clone()) { panic!("Invalid")} 
+                    let mut exprs = Vec::new();               
+                    for item in args {
+                        exprs.push(parse_expr(item, is_def))
+                    }
 
-                // One Argument Function //
-                [Sexp::Atom(S(funname)), arg] => {
-                    if check_reserved_words(funname.clone()) { panic!("Invalid")}
-
-                    Expr::Call1(funname.to_string(), Box::new(parse_expr(arg, is_def)))
-                },
-                
-                // Two Argument Function //
-                [Sexp::Atom(S(funname)), arg1, arg2] => {
-                    if check_reserved_words(funname.clone()) { panic!("Invalid")}
-                    Expr::Call2(
-                        funname.to_string(),
-                        Box::new(parse_expr(arg1, is_def)),
-                        Box::new(parse_expr(arg2, is_def))
-                    )
+                    Expr::Call(funname.clone(), exprs)
                 },
                 _ => {
                     if vec.len() > 3 {
@@ -222,6 +210,9 @@ pub fn parse_program(s: &Sexp) -> Program {
                     defs.push(instr);
                     func_list.insert(name);
                 } else {
+                    if defs.len() + 1 != vec.len() {
+                        panic!("Invalid function use")
+                    }
                     return Program {
                         defs: defs,
                         main: parse_expr(def_or_exp,false),
