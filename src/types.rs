@@ -63,7 +63,7 @@ pub enum Instr {
 
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum Op1 {
     Add1,
     Sub1,
@@ -72,7 +72,7 @@ pub enum Op1 {
     Print,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum Op2 {
     Plus,
     Minus,
@@ -84,7 +84,7 @@ pub enum Op2 {
     LessEqual,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum Expr {
     Number(u64),
     Boolean(bool),
