@@ -317,60 +317,7 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
             instr.push(Instr::IAdd(Val::Reg(Reg::RSP),Val::Imm(original_offset)));
 
 
-        },
-
-        Expr::Call1(name, arg) => {
-            if ! func_names.contains(name) {
-                panic!("Error - Invalid function call without definition.")
-            }
-            let arg_instrs = compile_to_instrs(arg, si, env, l, brake, func_names);
-            let offset = ((si*8) + 8) as u64;
-
-            // instr.extend(arg_instrs);
-            // instr.push(Instr::ISub(Val::Reg(Reg::RSP), Val::Imm(offset)));
-            // instr.push(Instr::Push(Val::Reg(Reg::RDI)));
-            // instr.push(Instr::IMov(Val::Reg(Reg::RDI),Val::Reg(Reg::RAX)));
-            // instr.push(Instr::Call(Val::Label(String::from(name))));
-            // instr.push(Instr::Pop(Val::Reg(Reg::RDI)));
-            // instr.push(Instr::IAdd(Val::Reg(Reg::RSP), Val::Imm(offset)));
-
-            instr.extend(arg_instrs);
-            instr.push(Instr::ISub(Val::Reg(Reg::RSP), Val::Imm(offset)));
-            instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, 0), Val::Reg(Reg::RAX)));
-            instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, -8), Val::Reg(Reg::RDI)));
-            instr.push(Instr::Call(Val::Label(name.clone())));
-            instr.push(Instr::IMov(Val::Reg(Reg::RDI),Val::RegOffset(Reg::RSP, -8)));
-
-        },
-        Expr::Call2(name, arg1, arg2) => {
-            let arg_1_instrs = compile_to_instrs(arg1, si, env, l, brake, func_names);
-            let arg_2_instrs = compile_to_instrs(arg2, si+1, env, l, brake, func_names);
-
-            let curr_word = si*8;
-            let offset = ((si*8) + (2*8)) as u64;
-            if ! func_names.contains(name) {
-                panic!("Error - Invalid function call without definition.")
-            }
-
-            instr.extend(arg_1_instrs);
-            instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, curr_word), Val::Reg(Reg::RAX)));
-            instr.extend(arg_2_instrs);
-
-            instr.push(Instr::ISub(Val::Reg(Reg::RSP), Val::Imm(offset)));
-
-            instr.push(Instr::IMov(Val::Reg(Reg::RBX), Val::RegOffset(Reg::RSP, -16)));
-            instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, 0), Val::Reg(Reg::RBX)));
-            instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, -8), Val::Reg(Reg::RAX)));
-            instr.push(Instr::IMov(Val::RegOffset(Reg::RSP, -16), Val::Reg(Reg::RDI)));
-
-            instr.push(Instr::Call(Val::Label(name.clone())));
-            instr.push(Instr::IMov(Val::Reg(Reg::RDI),Val::RegOffset(Reg::RSP, -16)));
-            instr.push(Instr::IAdd(Val::Reg(Reg::RSP), Val::Imm(offset)));
-
-
-
-        },
-        
+        },     
 
     }
     instr
@@ -539,27 +486,16 @@ fn val_to_str(v: &Val) -> String {
 
 fn compile_definition_instrs(d: &Definition, labels: &mut i32, func_names: &HashSet<String>) -> Vec<Instr> {
     let (env, body, name) = match d {
-        Definition::Fun(name, body) => {
-            let body_env:HashMap<String,i64> = HashMap::new();
-            (body_env, body, name)
-        }
-
-        // store arg1 at RSP + 8 (insert as negative because code generator does RSP - {offset}
-        Definition::Fun1(name, arg, body) => {
+        Definition::Fun(name, args, body) => {
             let mut body_env:HashMap<String,i64> = HashMap::new();
-            body_env.insert(String::from(arg),-8);
-            (body_env, body, name)
-        }
-
-        // store arg1 and arg2 at RSP + 8 and RSP + 16 (insert as negative because code generator does RSP - {offset}
-        Definition::Fun2(name, arg1, arg2, body) => {
-            if arg1 == arg2 {
-                panic!("Error - invalid function declaration; parameter is declared twice")
+            let mut mem_addr = -8;
+            for item in args {
+                if body_env.contains_key(item){
+                    panic!("Error - invalid function declaration; parameter is declared twice")
+                }
+                body_env.insert(String::from(item),mem_addr);
+                mem_addr -= 8;
             }
-            let mut body_env:HashMap<String,i64> = HashMap::new();
-            
-            body_env.insert(String::from(arg1),-8);
-            body_env.insert(String::from(arg2), -16);
             (body_env, body, name)
         }
     };
@@ -593,9 +529,8 @@ pub fn compile(p: &Program) -> (String,String) {
 
     for def in &p.defs[..] {
         let name = match def {
-            Definition::Fun(name,_) => name,
-            Definition::Fun1(name,_ ,_) => name,
-            Definition::Fun2(name,_ ,_ ,_) => name,
+            Definition::Fun(name,_, _) => name,
+           
         };
         if func_names.contains(name) { 
             panic!("Error - invalid function declaration, function {name} declare multiple times.")

@@ -1,0 +1,7 @@
+(fun (xer x)
+    (if (< x 2)
+        0
+        (block (print x) (xer (- x 1)))
+    )
+)
+(xer input)

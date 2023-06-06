@@ -1,0 +1,4 @@
+(fun (xer x)
+    (< x 2)
+)
+(xer input)

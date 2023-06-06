@@ -48,9 +48,9 @@ fn parse_input(s: &str) -> u64 {
     if s == "true" { 3 }
     else if s == "false" { 1 }
     else { 
-        let res = s.parse::<u64>();
+        let res = s.parse::<i64>();
         match res {
-            Ok(val) => val << 1,
+            Ok(val) => (val as u64) << 1,
             Err(_) => panic!("Invalid")
         }
     }    
