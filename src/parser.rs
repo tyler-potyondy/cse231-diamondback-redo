@@ -130,6 +130,7 @@ pub fn parse_expr(s: &Sexp, is_def: bool, defs: &HashMap<String,u64>) -> types::
                     if check_reserved_words(funname.clone()) { panic!("Invalid")} 
                     let mut exprs = Vec::new();               
 
+                    println!("funname {funname}");
                     if args.len() as u64 != *(defs.get(funname)).unwrap() {
                         panic!("Invalid, function call must match the number of arguments in declared function.")
                     }

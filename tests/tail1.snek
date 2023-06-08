@@ -1,0 +1,7 @@
+(fun (oddsum num sofar)
+    (if (= num 1)
+        sofar
+        (oddsum (+ num -2)  (+ sofar num))
+    )
+)
+(oddsum input 0)

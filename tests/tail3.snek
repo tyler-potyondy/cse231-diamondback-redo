@@ -1,0 +1,10 @@
+(fun (largestHopSize hop goal acc)
+    (if (= goal acc)
+        true
+        (if (> acc goal)
+            false
+            (largestHopSize hop goal (+ acc hop))
+        )
+    )
+)
+(largestHopSize input 500000 0)

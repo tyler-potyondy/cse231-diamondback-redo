@@ -21,6 +21,7 @@ pub enum Reg {
     RSP,
     RDI,
     RBX,
+    RDX
 }
 
 #[derive(Debug)]

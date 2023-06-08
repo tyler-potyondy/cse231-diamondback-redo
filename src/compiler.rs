@@ -186,9 +186,9 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
 
                         // compare values for equivalence
                         instr.push(Instr::Cmp(Val::Reg(Reg::RAX), Val::RegOffset(Reg::RSP, offset)));
-                        instr.push(Instr::IMov(Val::Reg(Reg::RBX), Val::Imm(3)));
+                        instr.push(Instr::IMov(Val::Reg(Reg::RDX), Val::Imm(3)));
                         instr.push(Instr::IMov(Val::Reg(Reg::RAX), Val::Imm(1)));
-                        instr.push(Instr::Cmove(Val::Reg(Reg::RAX),Val::Reg(Reg::RBX)));
+                        instr.push(Instr::Cmove(Val::Reg(Reg::RAX),Val::Reg(Reg::RDX)));
                     },
                 Op2::Greater => {
                     compare_size(&mut instr, 
@@ -307,7 +307,6 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
             let original_offset = offset;
 
             if tail {
-                println!("PROPER TAIL CALL!!!");
                 let mut iter = -1;
                 let mut iter2 = args.len() as i64;
 
@@ -332,7 +331,6 @@ fn compile_to_instrs(e: &Expr, mut si: i64, env: &HashMap<String,i64>, l: &mut i
                 instr.push(Instr::Jmp(Val::Label(name.clone())));
 
             } else {
-                println!("NORMAL CALL!");
     
                 let mut iter = 0;
                 // instr.push(Instr::ISub(Val::Reg(Reg::RSP), Val::Imm(offset)));
@@ -462,10 +460,10 @@ fn check_num_type_instr(instr: &mut Vec<Instr>, l: &mut i32){
 }
 
 fn same_type_expr(instr: &mut Vec<Instr>, offset:i64){
-    instr.push(Instr::IMov(Val::Reg(Reg::RBX), Val::Reg(Reg::RAX)));
-    instr.push(Instr::Xor(Val::Reg(Reg::RBX),Val::RegOffset(Reg::RSP, offset)));
+    instr.push(Instr::IMov(Val::Reg(Reg::RDX), Val::Reg(Reg::RAX)));
+    instr.push(Instr::Xor(Val::Reg(Reg::RDX),Val::RegOffset(Reg::RSP, offset)));
 
-    instr.push(Instr::Test(Val::Reg(Reg::RBX), Val::Imm(1)));
+    instr.push(Instr::Test(Val::Reg(Reg::RDX), Val::Imm(1)));
 
     // jmp if error case met
     instr.push(Instr::JNotEqual(Val::Label(String::from("invalid_arg"))));
@@ -505,6 +503,7 @@ fn val_to_str(v: &Val) -> String {
         Val::Reg(Reg::RBX) => String::from("rbx"),
         Val::Reg(Reg::RSP) => String::from("rsp"),
         Val::Reg(Reg::RDI) => String::from("rdi"),
+        Val::Reg(Reg::RDX) => String::from("rdx"),
         Val::Imm(n) => n.to_string(),
         Val::RegOffset(Reg::RSP,n) => {
             if *n < 0 {

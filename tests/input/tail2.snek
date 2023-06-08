@@ -1,0 +1,13 @@
+(fun (tugPos inp acc)
+    (if (> inp 10000000)
+        false
+        (tugNeg acc (+ acc 1))
+    )
+)
+(fun (tugNeg inp acc)
+    (if (< inp -10000000)
+        true
+        (tugPos acc (- acc 2))
+    )
+)
+(tugPos 0 0)
